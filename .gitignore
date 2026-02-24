@@ -1,0 +1,6 @@
+# Directorios
+__pycache__/
+.vscode/
+inverted_pendulum_arduino.ino
+environment.py
+plotting.py

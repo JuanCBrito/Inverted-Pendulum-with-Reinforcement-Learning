@@ -5,28 +5,59 @@ import time
 import numpy as np
 from gym import spaces
 import logging
+import threading
 
+pause_training = False
+
+def check_pause():
+    global pause_training
+    while True:
+        cmd = input()
+        if cmd.strip().lower() == 'p':
+            pause_training = not pause_training
+
+def wait_if_paused():
+    global pause_training
+    while pause_training:
+        time.sleep(0.5)
+        
 class InvertedPendulumEnv:
     def __init__(self):
         pygame.init()
 
-
-        self.WIDTH, self.HEIGHT = 800, 600
+        self.WIDTH, self.HEIGHT = 918, 768
         self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
-        pygame.display.set_caption("Inverted Pendulum Visualization")
+        pygame.display.set_caption("Péndulo Invertido")
 
         self.WHITE = (255, 255, 255)
         self.BLACK = (0, 0, 0)
         self.RED = (255, 0, 0)
         self.BLUE = (0, 0, 255)
 
-        self.PENDULUM_LENGTH = 200
-        self.CART_WIDTH = 100
-        self.CART_HEIGHT = 50
-        self.RACK_LENGTH = 600  
+        # Fondo personalizado
+        try:
+            self.background_img = pygame.image.load("images/918-768.png").convert()
+            self.background_img = pygame.transform.scale(self.background_img, (self.WIDTH, self.HEIGHT))
+        except pygame.error as e:
+            print(f"No se pudo cargar la imagen de fondo: {e}")
+            self.background_img = None
 
-        # Serial communication
-        self.arduino_port = "COM4"  # Replace with your Arduino port
+        # Imagen del carrito
+        self.CART_WIDTH = 70
+        self.CART_HEIGHT = 110
+        try:
+            self.cart_img = pygame.image.load("images/Carrito.png").convert_alpha()
+            self.cart_img = pygame.transform.scale(self.cart_img, (self.CART_WIDTH, self.CART_HEIGHT))
+        except pygame.error as e:
+            print(f"No se pudo cargar la imagen del carrito: {e}")
+            self.cart_img = None
+
+        self.PENDULUM_LENGTH = 200
+        self.RACK_LENGTH = 600
+
+        # Serial communication-
+        # self.arduino_port = "COM3" # Pendulum 1
+        self.arduino_port = "COM6" # Pendulum 2
         self.baud_rate = 115200
         self.ser = serial.Serial(self.arduino_port, self.baud_rate, timeout=1)
         time.sleep(2)
@@ -42,14 +73,29 @@ class InvertedPendulumEnv:
 
     def center(self):
         self.ser.write(b"10\n")  
-
+    
     def reset(self):
-        # Move pendulum to center (0 position)
+        # Mueve el péndulo al centro
         self.ser.write(b"10\n")
-
         self.ser.write(b'R\n')
         self.state = self._get_state()
-        
+
+        # Espera hasta que el péndulo esté abajo
+        start_time = None
+        while True:
+            self.ser.write(b'R\n')
+            self.state = self._get_state()
+            angle = self.state[1]
+
+            if 178 <= angle <= 182 or -182 <= angle <= -178:
+                if start_time is None:
+                    start_time = time.time()
+                elif time.time() - start_time >= 2.0:
+                    break  
+            else:
+                start_time = None  
+            time.sleep(0.01)  
+
         return self.state
 
     def step(self, action):
@@ -80,9 +126,11 @@ class InvertedPendulumEnv:
         return new_state, reward, done, {}
 
     def render(self):
-        self.screen.fill(self.WHITE)
+        if self.background_img:
+            self.screen.blit(self.background_img, (0, 0))
+        else:
+            self.screen.fill(self.WHITE)
         self._draw_pendulum(self.state[0], self.state[1])
-        
         font = pygame.font.Font(None, 36)
         info_text = font.render(f"Pos: {self.state[0]:.2f}, Angle: {self.state[1]:.2f}", True, self.BLACK)
         speed_text = font.render(f"Speed: {self.state[2]:.2f}, Angular Speed: {self.state[3]:.2f}", True, self.BLACK)
@@ -98,6 +146,7 @@ class InvertedPendulumEnv:
 
     def _get_state(self):
         for i in range(10): #try many times
+            pygame.event.pump()  # Mantiene la ventana activa
             if self.ser.in_waiting:
                 try:
                     data = self.ser.readline().decode().strip().split(',')
@@ -108,32 +157,34 @@ class InvertedPendulumEnv:
             time.sleep(0.001)
         return [0, 0, 0, 0]  # Return a default state if unable to read
 
-
-    
-    def _calculate_reward(self,observation,done):
-        x,vx,cos,sin,theta_dot = observation
-        reward = 0
-        reward += cos
-        reward -= 0.001*(theta_dot**2)
-        reward -= 0.1*abs(x)
+    def _calculate_reward(self, observation, done, angle_deg=None):
+        x, vx, cos, sin, theta_dot = observation
+        reward = cos
+        reward -= 0.003* (theta_dot ** 2)
+        reward -= 0.06 * abs(x)
+        # Bonificación por estar bien arriba y quieto
+        if cos > 0.99 and abs(theta_dot) < 0.2 and abs(x) < 0.2:
+            reward += 5
         return reward
 
     def _draw_pendulum(self, x, angle):
         cart_x = self.WIDTH // 2 + (x / 12000) * self.RACK_LENGTH
         cart_y = self.HEIGHT // 2 + 100
-
-        # Draw the rack
-        pygame.draw.line(self.screen, self.BLACK, (self.WIDTH // 2 - self.RACK_LENGTH // 2, cart_y + self.CART_HEIGHT // 2),
+        pygame.draw.line(self.screen, self.BLACK,
+                         (self.WIDTH // 2 - self.RACK_LENGTH // 2, cart_y + self.CART_HEIGHT // 2), #Dibuja el riel
                          (self.WIDTH // 2 + self.RACK_LENGTH // 2, cart_y + self.CART_HEIGHT // 2), 5)
-
-        # Draw the cart
-        pygame.draw.rect(self.screen, self.BLUE, (cart_x - self.CART_WIDTH // 2, cart_y, self.CART_WIDTH, self.CART_HEIGHT))
-
-        # Draw the pendulum
+        if self.cart_img:
+            self.screen.blit(self.cart_img, (cart_x - self.CART_WIDTH // 2, cart_y-33)) #Cambia la posición del carrito
+        else:
+            pygame.draw.rect(self.screen, self.BLUE,
+                             (cart_x - self.CART_WIDTH // 2, cart_y, self.CART_WIDTH, self.CART_HEIGHT))
         end_x = cart_x + self.PENDULUM_LENGTH * math.sin(math.radians(angle))
         end_y = cart_y - self.PENDULUM_LENGTH * math.cos(math.radians(angle))
         pygame.draw.line(self.screen, self.RED, (cart_x, cart_y), (end_x, end_y), 5)
         pygame.draw.circle(self.screen, self.RED, (int(end_x), int(end_y)), 10)
+        
+        
+
 
 def manual_control(env):
     clock = pygame.time.Clock()
@@ -168,8 +219,10 @@ def manual_control(env):
                         text += event.unicode
                 if event.key == pygame.K_SPACE:
                     mode = '0' if mode == '1' else '1'
-
-        env.screen.fill(env.WHITE)
+        if env.background_img:
+            env.screen.blit(env.background_img, (0, 0))
+        else:
+            env.screen.fill(env.WHITE)
 
         # Read and display state
         env.ser.write(b'R\n')

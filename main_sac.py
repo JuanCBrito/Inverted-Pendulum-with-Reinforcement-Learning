@@ -1,42 +1,50 @@
-from environment import InvertedPendulumEnv
+from environment import InvertedPendulumEnv, check_pause, wait_if_paused
 import numpy as np
 from agent_sac import Agent
-from plotting import plot_learning_curve
+from plotting import plot_learning_curve, plot_episode_variables, plot_scores_scatter
 import time
 import math
+import threading
 
 
 if __name__ == '__main__':
     
+    threading.Thread(target=check_pause, daemon=True).start()
+
     env = InvertedPendulumEnv()
     state = env.reset()
+    chkpt_dir = 'Modelos_Finales/Pendulo_1/Modelo_con_entropia_decreciente_05'
     agent = Agent(input_dims=[5], env=env,
-            n_actions=1)
-    n_games = 400
-    filename = 'inverted_pendulum.png'
-    
-    
+            n_actions=1, chkpt_dir=chkpt_dir)
+    n_games = 1200
+    filename = 'Modelo_recompensa_con_condicion_.png'
 
     figure_file = filename
 
-    best_score = env.reward_range[0]
+    best_score = -500
+    print('Best score: ', best_score)
     score_history = []
-    load_checkpoint = True
-    agent.load_models()
+    load_checkpoint = False
+    #agent.load_models()
     env.render()
-    if load_checkpoint:
-        agent.load_models() 
-        env.render()
-    
+
     for i in range(n_games):
+        wait_if_paused()
         env._get_state()
-        observation = env.reset()
+        observation = env.reset()  ## Jk
         observation = [observation[0]/5000 , observation[2]/500,math.cos(math.radians(observation[1])),math.sin(math.radians(observation[1])), math.radians(observation[3])]
         done = False
         steps = 0
         score = 0
+        
+        passed_vertical = False
+
+        if (i+1) % 100 == 0 and not load_checkpoint:
+            agent.entropy = max(0.2, agent.entropy - 0.5)
+            print(f"Reduciendo entropía, nuevo alpha: {agent.entropy}")
+        
         while not done:
-            i_time = time.time()
+            #i_time = time.time()
             steps += 1
             if load_checkpoint:
                 action = agent.choose_action(observation,deterministic=True)
@@ -44,8 +52,10 @@ if __name__ == '__main__':
                 action = agent.choose_action(observation)
 
             observation_, reward, done, info = env.step(action)
-            if (steps == 400 and not load_checkpoint):
+
+            if (steps == (400) and not load_checkpoint):
                 done = True
+            
             observation_ = [observation_[0]/5000 , observation_[2]/500,math.cos(math.radians(observation_[1])),math.sin(math.radians(observation_[1])), math.radians(observation_[3])]
             score += reward
             agent.remember(observation, action, reward, observation_, done)
@@ -71,3 +81,4 @@ if __name__ == '__main__':
     if not load_checkpoint:
         x = [i+1 for i in range(len(score_history))]
         plot_learning_curve(x, score_history, figure_file)
+        plot_scores_scatter(x, score_history, "scores_scatter.png")

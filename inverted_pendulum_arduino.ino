@@ -1,14 +1,14 @@
 // Encoder pins
-const int motorEncoderPinA = 21;
-const int motorEncoderPinB = 20;
-const int angleEncoderPinA = 2;
-const int angleEncoderPinB = 3;
+const int motorEncoderPinA = 3;
+const int motorEncoderPinB = 2;
+const int angleEncoderPinA = 18;
+const int angleEncoderPinB = 19;
 
 // Motor control pins
-const int motorPWMPin = 6;
-const int motorIN1 = 5;
-const int motorIN2 = 4;
-const int motorEnablePin = 7;
+const int motorPWMPin = 10;
+const int motorIN1 = 6;
+const int motorIN2 = 7;
+const int motorEnablePin = 5;
 
 // Encoder positions
 volatile long motorPosition = 0;
@@ -29,7 +29,7 @@ const int positionTolerance = 100;
 int voltageOutput = 0;
 
 // Angle calculation constants
-const float encoderStepsPerRevolution = 1440; // Adjusted for 4x PPR (400 * 4)
+const float encoderStepsPerRevolution = 2400; // Adjusted for 4x PPR (400 * 4)
 const float gearRatio = 1.0;
 
 // Variables for smoothing

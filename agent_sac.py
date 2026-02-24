@@ -1,26 +1,30 @@
 import torch as T
 import torch.nn.functional as F
+import torch.nn as nn
 from buffer import ReplayBuffer
 from networks import ActorNetwork, CriticNetwork, ValueNetwork
 
 class Agent():
     def __init__(self, alpha=0.0003, beta=0.0003, input_dims=[8],
             env=None, gamma=0.99, n_actions=2, max_size=1000000, tau=0.005,
-            layer1_size=256, layer2_size=256, batch_size=256, reward_scale=2):
+            layer1_size=256, layer2_size=256, batch_size=128, reward_scale=2, entropy=1
+            , chkpt_dir='None'):
         self.gamma = gamma
         self.tau = tau
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
         self.batch_size = batch_size
         self.n_actions = n_actions
+        self.entropy = entropy
 
         self.actor = ActorNetwork(alpha, input_dims, n_actions=n_actions,
-                    name='actor', max_action=env.action_space.high)
+                    name='actor', max_action=env.action_space.high, chkpt_dir=chkpt_dir)
         self.critic_1 = CriticNetwork(beta, input_dims, n_actions=n_actions,
-                    name='critic_1')
+                    name='critic_1', chkpt_dir=chkpt_dir)
         self.critic_2 = CriticNetwork(beta, input_dims, n_actions=n_actions,
-                    name='critic_2')
-        self.value = ValueNetwork(beta, input_dims, name='value')
-        self.target_value = ValueNetwork(beta, input_dims, name='target_value')
+                    name='critic_2', chkpt_dir=chkpt_dir)
+        self.value = ValueNetwork(beta, input_dims, name='value', chkpt_dir=chkpt_dir)
+        self.target_value = ValueNetwork(beta, input_dims, name='target_value', chkpt_dir=chkpt_dir)
+
 
         self.scale = reward_scale
         self.update_network_parameters(tau=1)
@@ -103,7 +107,7 @@ class Agent():
         critic_value = T.min(q1_new_policy, q2_new_policy)
         critic_value = critic_value.view(-1)
         
-        actor_loss = log_probs - critic_value
+        actor_loss = (self.entropy * log_probs) - critic_value
         actor_loss = T.mean(actor_loss)
         self.actor.optimizer.zero_grad()
         actor_loss.backward(retain_graph=False)

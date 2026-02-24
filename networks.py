@@ -8,7 +8,7 @@ import numpy as np
 
 class CriticNetwork(nn.Module):
     def __init__(self, beta, input_dims, n_actions, fc1_dims=256, fc2_dims=256,
-            name='critic', chkpt_dir='parameters'):
+            name='critic', chkpt_dir=None):         
         super(CriticNetwork, self).__init__()
         self.input_dims = input_dims
         self.fc1_dims = fc1_dims
@@ -16,12 +16,13 @@ class CriticNetwork(nn.Module):
         self.n_actions = n_actions
         self.name = name
         self.checkpoint_dir = chkpt_dir
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.checkpoint_file = os.path.join(self.checkpoint_dir, name+'_sac')
 
         self.fc1 = nn.Linear(self.input_dims[0]+n_actions, self.fc1_dims)
         self.fc2 = nn.Linear(self.fc1_dims, self.fc2_dims)
         self.q = nn.Linear(self.fc2_dims, 1)
-     
+
         self.optimizer = optim.Adam(self.parameters(), lr=beta)
         self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
 
@@ -45,13 +46,14 @@ class CriticNetwork(nn.Module):
 
 class ValueNetwork(nn.Module):
     def __init__(self, beta, input_dims, fc1_dims=256, fc2_dims=256,
-            name='value', chkpt_dir='parameters'):
+            name='value', chkpt_dir=None):
         super(ValueNetwork, self).__init__()
         self.input_dims = input_dims
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
         self.name = name
         self.checkpoint_dir = chkpt_dir
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.checkpoint_file = os.path.join(self.checkpoint_dir, name+'_sac')
 
         self.fc1 = nn.Linear(*self.input_dims, self.fc1_dims)
@@ -81,7 +83,7 @@ class ValueNetwork(nn.Module):
 
 class ActorNetwork(nn.Module):
     def __init__(self, alpha, input_dims, max_action, fc1_dims=256, 
-            fc2_dims=256, n_actions=2, name='actor', chkpt_dir='parameters'):
+            fc2_dims=256, n_actions=2, name='actor', chkpt_dir=None):
         super(ActorNetwork, self).__init__()
         self.input_dims = input_dims
         self.fc1_dims = fc1_dims
@@ -89,6 +91,7 @@ class ActorNetwork(nn.Module):
         self.n_actions = n_actions
         self.name = name
         self.checkpoint_dir = chkpt_dir
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.checkpoint_file = os.path.join(self.checkpoint_dir, name+'_sac')
         self.max_action = max_action
         self.reparam_noise = 1e-6
