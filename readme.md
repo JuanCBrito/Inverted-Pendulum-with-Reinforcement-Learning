@@ -113,11 +113,14 @@ Physical components used for the setup:
 6. Linear rail system
 7. 12 V contant power supply(SMPS)
 
+### Hardware evidence
+![alt text](images/Pendulum_system.png)
+
 ### Hardware Details and Notes
 
 - **Arduino Mega vs Arduino Uno**: Uno can be used but using the Mega reduces missed encoder steps because it provides more interrupt pins and resources.
 
-- **Encoder resolution**: The pendulum encoder used in this project is 360 PPR → 1440 CPR after quadrature decoding, yielding ~0.25° resolution. Higher PPR encoders improve angle resolution.
+- **Encoder resolution**: The pendulum encoder used in this project is 1200 PPR → 1440 CPR after quadrature decoding, yielding ~0.25° resolution.
 
 - **Mechanical wear**: Metal pulleys and robust printed parts are recommended; 3D printed pulleys can wear quickly with repeated training.
 
