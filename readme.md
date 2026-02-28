@@ -113,6 +113,8 @@ Physical components used for the setup:
 6. Linear rail system
 7. 12 V contant power supply(SMPS)
 
+### Pendulum design
+![alt text](images/pendulum_design.png)
 ### Hardware evidence
 ![alt text](images/Pendulum_system.png)
 
