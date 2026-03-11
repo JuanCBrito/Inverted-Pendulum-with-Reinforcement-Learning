@@ -1,4 +1,4 @@
-# Inverted Pendulum Project
+# Pendulum RL Lab
 
 This repository implements a Soft Actor-Critic (SAC) agent with adaptive entropy for swing-up control of an inverted-pendulum system. The project contains both the software used for training/evaluation and visualization, and the Arduino firmware and hardware details for a physical pendulum setup.
 
